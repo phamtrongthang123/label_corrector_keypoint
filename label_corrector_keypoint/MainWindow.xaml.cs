@@ -1,16 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 
 namespace label_corrector_keypoint
@@ -24,7 +17,7 @@ namespace label_corrector_keypoint
         Ellipse[] kpoints = new Ellipse[13];
         Image imageMain;
         TextBlock[] textBlocks = new TextBlock[13];
-        TextBox textBoxX; 
+        TextBox textBoxX;
         TextBox textBoxY;
         // srote current images path 
         string currentImagePath;
@@ -59,7 +52,7 @@ namespace label_corrector_keypoint
             this.textBlocks[0].Tag = this.kpoints[0];
             this.kpoints[0].Tag = this.textBlocks[0];
 
-            
+
         }
         UIElement dragObject = null;
         Point offset;
@@ -150,7 +143,7 @@ namespace label_corrector_keypoint
         }
 
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
-        {   
+        {
             // TODO: now i have to do is normalize this with Image. 
             // Get location of kpoints[0] and kpoint2 on Image children of CanvasMain
             // then normalize it with Image
@@ -166,5 +159,5 @@ namespace label_corrector_keypoint
         }
     }
 
-    
+
 }

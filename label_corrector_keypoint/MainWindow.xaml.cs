@@ -1,10 +1,29 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+
+// TODO:
+// - [ ] Browse button
+// - [x] Load all files in folder
+// - [x] Load image
+// - [x] Draw 13 points
+// - [x] Draw bbox
+// - [x] Move points
+// - [x] Move bbox
+// - [x] Load label from json
+// - [ ] Save label to json: after click save and move mouse. After saving, reload the json.
+// - [x] Next image
+// - [x] Previous image
+// - [ ] set default point in a place we can reach easily to move it, in case the model doesn't detect location.
+
+
 
 namespace label_corrector_keypoint
 {
@@ -17,42 +36,21 @@ namespace label_corrector_keypoint
         Ellipse[] kpoints = new Ellipse[13];
         Image imageMain;
         TextBlock[] textBlocks = new TextBlock[13];
-        TextBox textBoxX;
-        TextBox textBoxY;
         // srote current images path 
+        string currentDir;
+        string annotationfn = "metadata_csharp.json";
         string currentImagePath;
-        string fn = "000001188.jpg";
+        List<string> all_filepath = new List<string>();
+        string fn;
+        JArray annotation;
+        int current_index = 0;
         public MainWindow()
         {
             InitializeComponent();
             this.imageMain = CanvasMain.Children[0] as Image;
-            this.textBoxX = this.TextBoxX;
-            this.textBoxY = this.TextBoxY;
-            this.textBoxX.Text = "0";
-            this.textBoxY.Text = "0";
-            this.currentImagePath = "C:\\Users\\phamt\\Downloads";
-            // set text in front of kpoints[0]
-            this.textBlocks[0] = new TextBlock();
-            this.textBlocks[0].Text = "1";
-            this.textBlocks[0].Foreground = Brushes.Green;
-            Canvas.SetTop(this.textBlocks[0], 20);
-            Canvas.SetLeft(this.textBlocks[0], 20);
-            CanvasMain.Children.Add(this.textBlocks[0]);
-
-            this.kpoints[0] = new Ellipse();
-            this.kpoints[0].Fill = Brushes.Blue;
-            this.kpoints[0].Width = 10;
-            this.kpoints[0].Height = 10;
-            Canvas.SetTop(this.kpoints[0], 20);
-            Canvas.SetLeft(this.kpoints[0], 20);
-            this.kpoints[0].PreviewMouseDown += kpoint_PreviewMouseDown;
-            CanvasMain.Children.Add(this.kpoints[0]);
-
-            // pair text with kpoint
-            this.textBlocks[0].Tag = this.kpoints[0];
-            this.kpoints[0].Tag = this.textBlocks[0];
-
-
+            //this.TextBoxX.Text = "0";
+            //this.TextBoxY.Text = "0";
+            
         }
         UIElement dragObject = null;
         Point offset;
@@ -78,14 +76,14 @@ namespace label_corrector_keypoint
             Ellipse ellipse = this.dragObject as Ellipse;
             this.textBlock = ellipse.Tag as TextBlock;
             Canvas.SetTop(this.textBlock, Canvas.GetTop(this.dragObject));
-            Canvas.SetLeft(this.textBlock, Canvas.GetLeft(this.dragObject));
-            Point p1 = new Point(Canvas.GetLeft(this.kpoints[0]), Canvas.GetTop(this.kpoints[0]));
-            p1.X += this.kpoints[0].Width / 2;
-            p1.Y += this.kpoints[0].Height / 2;
-            p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
-            p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
-            this.textBoxX.Text = p1.X.ToString();
-            this.textBoxY.Text = p1.Y.ToString();
+            Canvas.SetLeft(this.textBlock, Canvas.GetLeft(this.dragObject) + ellipse.Width);
+            //Point p1 = new Point(Canvas.GetLeft(this.kpoints[0]), Canvas.GetTop(this.kpoints[0]));
+            //p1.X += this.kpoints[0].Width / 2;
+            //p1.Y += this.kpoints[0].Height / 2;
+            //p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
+            //p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
+            //this.TextBoxX.Text = p1.X.ToString();
+            //this.TextBoxY.Text = p1.Y.ToString();
         }
 
         private void CanvasMain_PreviewMouseUp(object sender, MouseButtonEventArgs e)
@@ -123,38 +121,140 @@ namespace label_corrector_keypoint
             // scale main window to fit image
             this.Width = this.CanvasMain.Width * 4 / 3;
             this.Height = this.CanvasMain.Height;
-
-
         }
 
         private void ButtonBrowse_Click(object sender, RoutedEventArgs e)
         {
+            // Current directory is hard code here
+            this.currentDir = "C:\\Users\\phamt\\source\\repos\\label_corrector_keypoint\\data";
+            // TODO: change this into open folder dialog and user can choose folder. For now, find the "data" folder and open it.
+
+            // The other processing has been done below so don't tough this unless there is a bug.
+            this.currentImagePath = System.IO.Path.Combine(this.currentDir, "images");
+            this.annotationfn = System.IO.Path.Combine(this.currentDir, this.annotationfn);
+            // load json 
+            annotation = JArray.Parse(File.ReadAllText(this.annotationfn));
+
+            JObject current_item;
+            // get all id of images 
+            for (int i = 0; i < annotation.Count; i++)
+            {
+                current_item = (JObject)annotation[i];
+                this.all_filepath.Add(System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg"));
+            }
+            // get first image
+            this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
+            this.ButtonReload_Click(sender, e);
+
+            // after load the image, load points and box
+            current_item = (JObject)annotation[this.current_index];
+            // parse current item to get all points
+            for (int i = 0; i < 13; i++)
+            {
+                // create kpoint
+                this.kpoints[i] = new Ellipse();
+                this.kpoints[i].Fill = Brushes.LightGreen;
+                this.kpoints[i].Width = 8;
+                this.kpoints[i].Height = 8;
+                double location_x = (double)current_item["points"][i * 3];
+                // transform location_x to fit image
+                location_x = location_x / this.imageMain.Source.Width * this.imageMain.ActualWidth;
+                double location_y = (double)current_item["points"][i * 3 + 1];
+                // transform location_y to fit image
+                location_y = location_y / this.imageMain.Source.Height * this.imageMain.ActualHeight;
+
+                Canvas.SetTop(this.kpoints[i], location_y - this.kpoints[i].Height);
+                Canvas.SetLeft(this.kpoints[i], location_x - this.kpoints[i].Width);
+                this.kpoints[i].PreviewMouseDown += kpoint_PreviewMouseDown;
+                CanvasMain.Children.Add(this.kpoints[i]);
+
+                // create textblock
+                this.textBlocks[i] = new TextBlock();
+                this.textBlocks[i].Text = (i + 1).ToString();
+                this.textBlocks[i].Foreground = Brushes.LightGreen;
+                //bold 
+                this.textBlocks[i].FontWeight = FontWeights.Bold;
+                this.textBlocks[i].FontSize = 16;
+                Canvas.SetTop(this.textBlocks[i], Canvas.GetTop(this.kpoints[i]));
+                Canvas.SetLeft(this.textBlocks[i], Canvas.GetLeft(this.kpoints[i]) + this.kpoints[i].Width);
+                CanvasMain.Children.Add(this.textBlocks[i]);
+                // pair text with kpoint
+                this.textBlocks[i].Tag = this.kpoints[i];
+                this.kpoints[i].Tag = this.textBlocks[i];
+            }
+
 
         }
 
         private void ButtonNext_Click(object sender, RoutedEventArgs e)
         {
+            this.current_index = this.current_index + 1;
+            if (this.current_index >= this.all_filepath.Count)
+            {
+                this.current_index = 0;
+            }
+            this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
+            this.ButtonReload_Click(sender, e);
 
+            // update kpoints and textblocks
+            JObject current_item = (JObject)annotation[this.current_index];
+            // parse current item to get all points
+            for (int i = 0; i < 13; i++)
+            {
+                double location_x = (double)current_item["points"][i * 3];
+                // transform location_x to fit image
+                location_x = location_x / this.imageMain.Source.Width * this.imageMain.ActualWidth;
+                double location_y = (double)current_item["points"][i * 3 + 1];
+                // transform location_y to fit image
+                location_y = location_y / this.imageMain.Source.Height * this.imageMain.ActualHeight;
+
+                Canvas.SetTop(this.kpoints[i], location_y - this.kpoints[i].Height);
+                Canvas.SetLeft(this.kpoints[i], location_x - this.kpoints[i].Width);
+
+                // create textblock
+                Canvas.SetTop(this.textBlocks[i], Canvas.GetTop(this.kpoints[i]));
+                Canvas.SetLeft(this.textBlocks[i], Canvas.GetLeft(this.kpoints[i]) + this.kpoints[i].Width);
+
+            }
         }
 
         private void ButtonPrev_Click(object sender, RoutedEventArgs e)
         {
+            this.current_index = this.current_index - 1;
+            if (this.current_index < 0)
+            {
+                this.current_index = this.all_filepath.Count - 1;
+            }
+            this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
+            this.ButtonReload_Click(sender, e);
+            // update kpoints and textblocks
+            JObject current_item = (JObject)annotation[current_index];
+            // parse current item to get all points
+            for (int i = 0; i < 13; i++)
+            {
+                double location_x = (double)current_item["points"][i * 3];
+                // transform location_x to fit image
+                location_x = location_x / this.imageMain.Source.Width * this.imageMain.ActualWidth;
+                double location_y = (double)current_item["points"][i * 3 + 1];
+                // transform location_y to fit image
+                location_y = location_y / this.imageMain.Source.Height * this.imageMain.ActualHeight;
 
+                Canvas.SetTop(this.kpoints[i], location_y - this.kpoints[i].Height);
+                Canvas.SetLeft(this.kpoints[i], location_x - this.kpoints[i].Width);
+
+                // create textblock
+                Canvas.SetTop(this.textBlocks[i], Canvas.GetTop(this.kpoints[i]));
+                Canvas.SetLeft(this.textBlocks[i], Canvas.GetLeft(this.kpoints[i]) + this.kpoints[i].Width);
+
+            }
         }
 
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: now i have to do is normalize this with Image. 
-            // Get location of kpoints[0] and kpoint2 on Image children of CanvasMain
-            // then normalize it with Image
-            // then save it to file
-            Point p1 = new Point(Canvas.GetLeft(this.kpoints[0]), Canvas.GetTop(this.kpoints[0]));
-            p1.X += this.kpoints[0].Width / 2;
-            p1.Y += this.kpoints[0].Height / 2;
-            // normalize
-            p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
-            p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
-            Console.WriteLine("p1: " + p1.ToString());
+            // TODO: 
+            // 1. Open folder dialog to select folder to save. For now, find the "data" folder and open it for saving.
+            // 2. Save all points to json file
+            Console.WriteLine("Please implement here!");
 
         }
     }

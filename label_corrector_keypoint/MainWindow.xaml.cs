@@ -1,13 +1,18 @@
-﻿using Newtonsoft.Json.Linq;
+using Microsoft.Win32;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Xml.Linq;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 // TODO:
 // - [ ] Browse button
@@ -50,7 +55,7 @@ namespace label_corrector_keypoint
             this.imageMain = CanvasMain.Children[0] as Image;
             //this.TextBoxX.Text = "0";
             //this.TextBoxY.Text = "0";
-            
+
         }
         UIElement dragObject = null;
         Point offset;
@@ -126,63 +131,76 @@ namespace label_corrector_keypoint
         private void ButtonBrowse_Click(object sender, RoutedEventArgs e)
         {
             // Current directory is hard code here
-            this.currentDir = "C:\\Users\\phamt\\source\\repos\\label_corrector_keypoint\\data";
-            // TODO: change this into open folder dialog and user can choose folder. For now, find the "data" folder and open it.
-
-            // The other processing has been done below so don't tough this unless there is a bug.
-            this.currentImagePath = System.IO.Path.Combine(this.currentDir, "images");
-            this.annotationfn = System.IO.Path.Combine(this.currentDir, this.annotationfn);
-            // load json 
-            annotation = JArray.Parse(File.ReadAllText(this.annotationfn));
-
-            JObject current_item;
-            // get all id of images 
-            for (int i = 0; i < annotation.Count; i++)
+            try
             {
-                current_item = (JObject)annotation[i];
-                this.all_filepath.Add(System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg"));
+                FolderBrowserDialog dlg = new FolderBrowserDialog();
+                
+                if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    
+                    this.currentDir = dlg.SelectedPath;
+
+                }
+
+
+                this.currentImagePath = System.IO.Path.Combine(this.currentDir, "images");
+                this.annotationfn = System.IO.Path.Combine(this.currentDir, this.annotationfn);
+                
+                // load json 
+                // load json a
+                annotation = JArray.Parse(File.ReadAllText(this.annotationfn));
+
+                JObject current_item;
+                // get all id of images 
+                for (int i = 0; i < annotation.Count; i++)
+                {
+                    current_item = (JObject)annotation[i];
+                    this.all_filepath.Add(System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg"));
+                }
+                // get first image
+                this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
+                this.ButtonReload_Click(sender, e);
+
+                // after load the image, load points and box
+                current_item = (JObject)annotation[this.current_index];
+                // parse current item to get all points
+                for (int i = 0; i < 13; i++)
+                {
+                    // create kpoint
+                    this.kpoints[i] = new Ellipse();
+                    this.kpoints[i].Fill = Brushes.LightGreen;
+                    this.kpoints[i].Width = 8;
+                    this.kpoints[i].Height = 8;
+                    double location_x = (double)current_item["points"][i * 3];
+                    // transform location_x to fit image
+                    location_x = location_x / this.imageMain.Source.Width * this.imageMain.ActualWidth;
+                    double location_y = (double)current_item["points"][i * 3 + 1];
+                    // transform location_y to fit image
+                    location_y = location_y / this.imageMain.Source.Height * this.imageMain.ActualHeight;
+
+                    Canvas.SetTop(this.kpoints[i], location_y - this.kpoints[i].Height);
+                    Canvas.SetLeft(this.kpoints[i], location_x - this.kpoints[i].Width);
+                    this.kpoints[i].PreviewMouseDown += kpoint_PreviewMouseDown;
+                    CanvasMain.Children.Add(this.kpoints[i]);
+
+                    // create textblock
+                    this.textBlocks[i] = new TextBlock();
+                    this.textBlocks[i].Text = (i + 1).ToString();
+                    this.textBlocks[i].Foreground = Brushes.LightGreen;
+                    //bold 
+                    this.textBlocks[i].FontWeight = FontWeights.Bold;
+                    this.textBlocks[i].FontSize = 16;
+                    Canvas.SetTop(this.textBlocks[i], Canvas.GetTop(this.kpoints[i]));
+                    Canvas.SetLeft(this.textBlocks[i], Canvas.GetLeft(this.kpoints[i]) + this.kpoints[i].Width);
+                    CanvasMain.Children.Add(this.textBlocks[i]);
+                    // pair text with kpoint
+                    this.textBlocks[i].Tag = this.kpoints[i];
+                    this.kpoints[i].Tag = this.textBlocks[i];
+                }
             }
-            // get first image
-            this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
-            this.ButtonReload_Click(sender, e);
-
-            // after load the image, load points and box
-            current_item = (JObject)annotation[this.current_index];
-            // parse current item to get all points
-            for (int i = 0; i < 13; i++)
-            {
-                // create kpoint
-                this.kpoints[i] = new Ellipse();
-                this.kpoints[i].Fill = Brushes.LightGreen;
-                this.kpoints[i].Width = 8;
-                this.kpoints[i].Height = 8;
-                double location_x = (double)current_item["points"][i * 3];
-                // transform location_x to fit image
-                location_x = location_x / this.imageMain.Source.Width * this.imageMain.ActualWidth;
-                double location_y = (double)current_item["points"][i * 3 + 1];
-                // transform location_y to fit image
-                location_y = location_y / this.imageMain.Source.Height * this.imageMain.ActualHeight;
-
-                Canvas.SetTop(this.kpoints[i], location_y - this.kpoints[i].Height);
-                Canvas.SetLeft(this.kpoints[i], location_x - this.kpoints[i].Width);
-                this.kpoints[i].PreviewMouseDown += kpoint_PreviewMouseDown;
-                CanvasMain.Children.Add(this.kpoints[i]);
-
-                // create textblock
-                this.textBlocks[i] = new TextBlock();
-                this.textBlocks[i].Text = (i + 1).ToString();
-                this.textBlocks[i].Foreground = Brushes.LightGreen;
-                //bold 
-                this.textBlocks[i].FontWeight = FontWeights.Bold;
-                this.textBlocks[i].FontSize = 16;
-                Canvas.SetTop(this.textBlocks[i], Canvas.GetTop(this.kpoints[i]));
-                Canvas.SetLeft(this.textBlocks[i], Canvas.GetLeft(this.kpoints[i]) + this.kpoints[i].Width);
-                CanvasMain.Children.Add(this.textBlocks[i]);
-                // pair text with kpoint
-                this.textBlocks[i].Tag = this.kpoints[i];
-                this.kpoints[i].Tag = this.textBlocks[i];
+            catch(Exception ex) {
+                System.Windows.Forms.MessageBox.Show("Invalid Path: " + ex.Message);
             }
-
 
         }
 
@@ -251,13 +269,28 @@ namespace label_corrector_keypoint
 
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
         {
-            // TODO: 
-            // 1. Open folder dialog to select folder to save. For now, find the "data" folder and open it for saving.
-            // 2. Save all points to json file
-            Console.WriteLine("Please implement here!");
+            try
+            {
+               
+                string jsonObject = File.ReadAllText(this.annotationfn);
+
+                System.Windows.Forms.SaveFileDialog saveDialog = new System.Windows.Forms.SaveFileDialog();
+
+                if (saveDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    File.WriteAllText(saveDialog.FileName, jsonObject);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.Forms.MessageBox.Show("Something went wrong while saving:" +  ex.Message);
+            }
+            
+        }
+        
 
         }
-    }
+    
 
 
 }

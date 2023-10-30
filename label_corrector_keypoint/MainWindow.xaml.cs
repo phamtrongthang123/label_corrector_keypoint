@@ -82,11 +82,20 @@ namespace label_corrector_keypoint
             this.textBlock = ellipse.Tag as TextBlock;
             Canvas.SetTop(this.textBlock, Canvas.GetTop(this.dragObject));
             Canvas.SetLeft(this.textBlock, Canvas.GetLeft(this.dragObject) + ellipse.Width);
-            //Point p1 = new Point(Canvas.GetLeft(this.kpoints[0]), Canvas.GetTop(this.kpoints[0]));
-            //p1.X += this.kpoints[0].Width / 2;
-            //p1.Y += this.kpoints[0].Height / 2;
-            //p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
-            //p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
+
+            Point p1 = new Point(Canvas.GetLeft(this.dragObject), Canvas.GetTop(this.dragObject));
+
+            p1.X += ellipse.Width / 2;
+            p1.Y += ellipse.Height / 2;
+            p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
+            p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
+
+            int id = Int32.Parse(this.textBlock.Text)-1;
+
+            JObject current_obj = (JObject)annotation[this.current_index];
+            current_obj["points"][id * 3] = (int)Math.Round(p1.X);
+            current_obj["points"][id*3 + 1] = (int)Math.Round(p1.Y);
+            annotation[this.current_index] = (JToken)current_obj;
             //this.TextBoxX.Text = p1.X.ToString();
             //this.TextBoxY.Text = p1.Y.ToString();
         }
@@ -206,6 +215,7 @@ namespace label_corrector_keypoint
 
         private void ButtonNext_Click(object sender, RoutedEventArgs e)
         {
+
             this.current_index = this.current_index + 1;
             if (this.current_index >= this.all_filepath.Count)
             {
@@ -272,13 +282,13 @@ namespace label_corrector_keypoint
             try
             {
                
-                string jsonObject = File.ReadAllText(this.annotationfn);
+                //string jsonObject = File.ReadAllText(this.annotationfn);
 
                 System.Windows.Forms.SaveFileDialog saveDialog = new System.Windows.Forms.SaveFileDialog();
 
                 if (saveDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
-                    File.WriteAllText(saveDialog.FileName, jsonObject);
+                    File.WriteAllText(saveDialog.FileName, annotation.ToString());
                 }
             }
             catch (Exception ex)

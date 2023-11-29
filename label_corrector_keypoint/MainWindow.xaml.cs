@@ -49,6 +49,9 @@ namespace label_corrector_keypoint
         string fn;
         JArray annotation;
         int current_index = 0;
+        //Dictionary for keep or discard status
+        Dictionary<string, string> Keep_or_Discard = new Dictionary<string, string>();
+        Boolean start = false;
         public MainWindow()
         {
             InitializeComponent();
@@ -60,7 +63,22 @@ namespace label_corrector_keypoint
         UIElement dragObject = null;
         Point offset;
         TextBlock textBlock;
-
+        
+        //Method to update buttons and status based on the image's keep or discard status
+        public void UpdateStatus()
+        {
+            JObject current_item = (JObject)annotation[current_index];
+            if (Keep_or_Discard[current_item["id"].ToString()].Equals("Keep"))
+            {
+                TextStatus.Text = "Status: Keep";
+                ButtonKorD.Content = "Discard";
+            }
+            else
+            {
+                TextStatus.Text = "Status: Discard";
+                ButtonKorD.Content = "Keep";
+            }
+        }
         private void kpoint_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             this.dragObject = sender as UIElement;
@@ -99,6 +117,7 @@ namespace label_corrector_keypoint
             //this.TextBoxX.Text = p1.X.ToString();
             //this.TextBoxY.Text = p1.Y.ToString();
         }
+
 
         private void CanvasMain_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
@@ -150,20 +169,19 @@ namespace label_corrector_keypoint
                     this.currentDir = dlg.SelectedPath;
 
                 }
-
-
+                start = true; 
                 this.currentImagePath = System.IO.Path.Combine(this.currentDir, "images");
                 this.annotationfn = System.IO.Path.Combine(this.currentDir, this.annotationfn);
                 
                 // load json 
                 // load json a
                 annotation = JArray.Parse(File.ReadAllText(this.annotationfn));
-
                 JObject current_item;
                 // get all id of images 
                 for (int i = 0; i < annotation.Count; i++)
                 {
                     current_item = (JObject)annotation[i];
+                    Keep_or_Discard.Add(current_item["id"].ToString(), "Keep");
                     this.all_filepath.Add(System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg"));
                 }
                 // get first image
@@ -213,6 +231,7 @@ namespace label_corrector_keypoint
 
         }
 
+
         private void ButtonNext_Click(object sender, RoutedEventArgs e)
         {
 
@@ -224,8 +243,9 @@ namespace label_corrector_keypoint
             this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
             this.ButtonReload_Click(sender, e);
 
-            // update kpoints and textblocks
+            // update kpoints, keep/discard button, and textblocks
             JObject current_item = (JObject)annotation[this.current_index];
+            UpdateStatus();
             // parse current item to get all points
             for (int i = 0; i < 13; i++)
             {
@@ -255,8 +275,9 @@ namespace label_corrector_keypoint
             }
             this.fn = System.IO.Path.GetFileName(this.all_filepath[this.current_index]);
             this.ButtonReload_Click(sender, e);
-            // update kpoints and textblocks
+            // update kpoints, keep/discard button, and textblocks
             JObject current_item = (JObject)annotation[current_index];
+            UpdateStatus();
             // parse current item to get all points
             for (int i = 0; i < 13; i++)
             {
@@ -279,12 +300,31 @@ namespace label_corrector_keypoint
 
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
         {
+            //loops through annotation and removes all elements and images which have their id's status set to discard 
+
+
+            for (int i = annotation.Count-1; i >= 1; i--)
+            {
+                JObject current_item = (JObject)annotation[i];
+                String path = System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg");
+                path.TrimEnd('\r', '\n');
+                if (Keep_or_Discard[current_item["id"].ToString()].Equals("Discard"))
+                {
+                    System.GC.Collect();
+                    System.GC.WaitForPendingFinalizers();
+                    File.Delete(path);
+                    annotation.Remove(annotation[i]);
+                }
+;
+            }
             try
             {
                
                 //string jsonObject = File.ReadAllText(this.annotationfn);
 
+
                 System.Windows.Forms.SaveFileDialog saveDialog = new System.Windows.Forms.SaveFileDialog();
+
 
                 if (saveDialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                 {
@@ -296,6 +336,23 @@ namespace label_corrector_keypoint
                 System.Windows.Forms.MessageBox.Show("Something went wrong while saving:" +  ex.Message);
             }
             
+        }
+
+        private void Keep_or_Discard_Click(object sender, RoutedEventArgs e)
+        {
+            if (start)
+            {
+                JObject current = (JObject)annotation[current_index];
+                if (Keep_or_Discard[current["id"].ToString()].Equals("Keep"))
+                {
+                    Keep_or_Discard[current["id"].ToString()] = "Discard";
+                }
+                else
+                {
+                    Keep_or_Discard[current["id"].ToString()] = "Keep";
+                }
+                UpdateStatus();
+            }
         }
         
 

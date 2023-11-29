@@ -31,6 +31,8 @@
             <Button x:Name="ButtonReload" Content="Reload" Width="70" Height="30" Click="ButtonReload_Click"  HorizontalAlignment="Center" VerticalAlignment="Top" Grid.Row="2"/>
             <Button x:Name="ButtonNext" Content="Next" Width="70" Height="30" Click="ButtonNext_Click" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.Row="3"/>
             <Button x:Name="ButtonPrev" Content="Prev" Width="70" Height="30" Click="ButtonPrev_Click"  HorizontalAlignment="Center" VerticalAlignment="Top" Grid.Row="4"/>
+            <TextBlock x:Name="TextStatus" Text="Status: Keep" Width="80" Height="30" HorizontalAlignment="Center" VerticalAlignment="Top" Grid.Row="5"/>
+            <Button x:Name="ButtonKorD" Content="Discard" Width="70" Height="30" Click="Keep_or_Discard_Click"  HorizontalAlignment="Center" VerticalAlignment="Top" Grid.Row="6"/>
         </Grid>
 
     </Grid>

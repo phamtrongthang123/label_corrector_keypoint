@@ -301,14 +301,12 @@ namespace label_corrector_keypoint
         private void ButtonSave_Click(object sender, RoutedEventArgs e)
         {
             //loops through annotation and removes all elements and images which have their id's status set to discard 
-
-
-            for (int i = annotation.Count-1; i >= 1; i--)
+            for (int i = annotation.Count-1; i >=0; i--)
             {
                 JObject current_item = (JObject)annotation[i];
                 String path = System.IO.Path.Combine(this.currentImagePath, current_item["id"].ToString() + ".jpg");
                 path.TrimEnd('\r', '\n');
-                if (Keep_or_Discard[current_item["id"].ToString()].Equals("Discard"))
+                if (!(this.all_filepath[this.current_index].Equals(path)) && Keep_or_Discard[current_item["id"].ToString()].Equals("Discard"))
                 {
                     System.GC.Collect();
                     System.GC.WaitForPendingFinalizers();

@@ -103,8 +103,8 @@ namespace label_corrector_keypoint
 
             Point p1 = new Point(Canvas.GetLeft(this.dragObject), Canvas.GetTop(this.dragObject));
 
-            p1.X += ellipse.Width / 2;
-            p1.Y += ellipse.Height / 2;
+            p1.X += ellipse.Width;
+            p1.Y += ellipse.Height;
             p1.X = p1.X / this.imageMain.ActualWidth * this.imageMain.Source.Width;
             p1.Y = p1.Y / this.imageMain.ActualHeight * this.imageMain.Source.Height;
 
